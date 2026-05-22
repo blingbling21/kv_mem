@@ -1,41 +1,37 @@
-use std::{
-    collections::HashMap,
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
-    sync::{Arc, Mutex},
-    thread::spawn,
-};
+use std::{collections::HashMap, sync::Arc};
+
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream}, spawn, sync::RwLock};
 
 use crate::error::AppResult;
 
 pub mod error;
 
-type Db = Arc<Mutex<HashMap<String, Vec<u8>>>>;
+type Db = Arc<RwLock<HashMap<String, Vec<u8>>>>;
 
-fn main() -> AppResult<()> {
-    let listener = TcpListener::bind("127.0.0.1:8080")?;
+#[tokio::main]
+async fn main() -> AppResult<()> {
+    let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("服务器正在监听 127.0.0.1:8080");
-    let db: Db = Arc::new(Mutex::new(HashMap::new()));
+    let db: Db = Arc::new(RwLock::new(HashMap::new()));
 
-    for stream in listener.incoming() {
-        let stream = match stream {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("接受连接时发生错误: {}", e);
-                continue;
-            }
-        };
+    loop {
+        let (stream, _) = listener.accept().await?;
+        // let stream = match stream {
+        //     Ok(s) => s,
+        //     Err(e) => {
+        //         eprintln!("接受连接时发生错误: {}", e);
+        //         continue;
+        //     }
+        // };
 
         let db_clone = Arc::clone(&db);
 
-        spawn(|| {
-            if let Err(e) = handle_client(stream, db_clone) {
+        spawn(async move {
+            if let Err(e) = handle_client(stream, db_clone).await {
                 eprintln!("处理客户端请求时发生错误: {}", e);
             }
         });
     }
-
-    Ok(())
 }
 
 #[derive(Debug)]
@@ -87,36 +83,39 @@ pub fn parse_command<'a>(input: &'a [u8]) -> AppResult<Command<'a>> {
     }
 }
 
-fn handle_client(mut stream: TcpStream, db: Db) -> AppResult<()> {
+async fn handle_client(mut stream: TcpStream, db: Db) -> AppResult<()> {
     let mut buffer = [0; 1024];
-    let n = stream.read(&mut buffer)?;
+    let n = stream.read(&mut buffer).await?;
     if n == 0 {
         return Ok(());
     }
     let cmd = parse_command(&buffer[..n])?;
 
-    let mut db_guard = db.lock().unwrap();
+    // let mut db_guard = db.write().await;
     match cmd {
         Command::Get { key } => {
+            let db_guard = db.read().await;
             if let Some(val) = db_guard.get(key) {
-                stream.write_all(val)?;
-                stream.write_all(b"\n")?;
+                stream.write_all(val).await?;
+                stream.write_all(b"\n").await?;
             } else {
-                stream.write_all(b"KEY_NOT_EXIST\n")?;
+                stream.write_all(b"KEY_NOT_EXIST\n").await?;
             }
         }
         Command::Set { key, value } => {
+            let mut db_guard = db.write().await;
             db_guard.insert(key.to_string(), value.to_vec());
-            stream.write_all(b"OK\n")?;
+            stream.write_all(b"OK\n").await?;
         }
         Command::Delete { key } => {
+            let mut db_guard = db.write().await;
             if db_guard.remove(key).is_some() {
-                stream.write_all(b"DELETED\n")?;
+                stream.write_all(b"DELETED\n").await?;
             } else {
-                stream.write_all(b"KEY_NOT_EXIST\n")?;
+                stream.write_all(b"KEY_NOT_EXIST\n").await?;
             }
         }
     }
-    stream.flush()?;
+    stream.flush().await?;
     Ok(())
 }
