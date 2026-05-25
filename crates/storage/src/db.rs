@@ -29,35 +29,8 @@ impl DbState {
 
             while cursor < buffer.len() {
                 let (protocol, protocol_len) = Command::decode(&buffer[cursor..])?;
-                // if cursor + 3 > buffer.len() {
-                //     break; // 不足以读取命令码和键长度，停止解析
-                // }
-
-                // let cmd = buffer[cursor];
-                // let key_len = u16::from_be_bytes([buffer[cursor + 1], buffer[cursor + 2]]) as usize;
-
-                // if cursor + 3 + key_len > buffer.len() {
-                //     break; // 不足以包含键，停止解析
-                // }
-
-                // let key = str::from_utf8(&buffer[cursor + 3..cursor + 3 + key_len])?;
-
                 match protocol {
                     Command::Set { key, value } => {
-                        // let val_len_cursor = cursor + 3 + key_len;
-                        // if val_len_cursor + 2 > buffer.len() {
-                        //     break; // 不足以包含值长度，停止解析
-                        // }
-                        // let val_len = u16::from_be_bytes([
-                        //     buffer[val_len_cursor],
-                        //     buffer[val_len_cursor + 1],
-                        // ]) as usize;
-
-                        // if val_len_cursor + 2 + val_len > buffer.len() {
-                        //     break; // 不足以包含值，停止解析
-                        // }
-                        // let val = buffer[val_len_cursor + 2..val_len_cursor + 2 + val_len].to_vec();
-
                         temp_map.insert(key.to_string(), value.to_vec());
                     }
                     Command::Delete { key } => {
