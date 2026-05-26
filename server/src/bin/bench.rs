@@ -24,9 +24,9 @@ async fn main() {
             // 构造自定义二进制协议数据
             // 我们为每个线程分配不同的 Key（如 key_0001, key_0002），模拟真实的业务场景
             let key = format!("key_{:06}", i);
-            let val =  format!("val_test_{:06}", i);
-            let cmd = Command::Get { key: &key }; // 这里我们先测试 Get 命令，后续可以改成 Set 或 Delete 来测试不同的命令类型
-            // let cmd = Command::Set { key: &key, value: val.as_bytes() }; // 这里我们先测试 Get 命令，后续可以改成 Set 或 Delete 来测试不同的命令类型
+            let val =  format!("val_iiii_{:06}", i);
+            // let cmd = Command::Get { key: &key }; // 这里我们先测试 Get 命令，后续可以改成 Set 或 Delete 来测试不同的命令类型
+            let cmd = Command::Set { key: &key, value: val.as_bytes() }; // 这里我们先测试 Get 命令，后续可以改成 Set 或 Delete 来测试不同的命令类型
             
             // 拼接二进制数据包
             let payload = cmd.encode();
@@ -53,7 +53,7 @@ async fn main() {
         handles.push(handle);
 
         if i % 200 == 0 {
-          sleep(std::time::Duration::from_millis(5)).await; // 小间隔，逐步建立连接，避免瞬间过载
+          sleep(std::time::Duration::from_millis(50)).await; // 小间隔，逐步建立连接，避免瞬间过载
         }
     }
 

@@ -5,7 +5,7 @@ use storage::db::{DB, DbState};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
-    spawn,
+    spawn, time::{interval, Duration},
 };
 
 use crate::{error::ServerResult, server::Server};
@@ -16,11 +16,27 @@ pub mod server;
 #[tokio::main]
 async fn main() -> ServerResult<()> {
     let wal_file_path = "wal.log";
+    let snapshot_path = "snapshot.db";
     
-    let db_state = DbState::recover(wal_file_path).await?;
+    let db_state = DbState::recover(wal_file_path, snapshot_path).await?;
 
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     println!("服务器正在监听 127.0.0.1:8080");
+
+    let mut db_state_clone1 = Arc::clone(&db_state);
+    tokio::spawn(async move {
+        let mut interval = interval(Duration::from_secs(5));
+
+        println!("snapshot 定时器已启动");
+
+        loop {
+            interval.tick().await;
+
+            if let Err(e) = Server::snapshot(&mut db_state_clone1, wal_file_path, snapshot_path).await {
+                eprintln!("存储snapshot过程中出现错误: {:?}", e);
+            }
+        }
+    });
 
     loop {
         let (stream, _) = listener.accept().await?;
