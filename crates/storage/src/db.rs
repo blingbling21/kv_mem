@@ -39,6 +39,7 @@ impl DbState {
             wal_size = DbState::replay_file(&wal_log_path, &mut temp_map).await?;
         }
 
+        println!("数据恢复完成，成功恢复了 {} 条记录。", temp_map.len());
 
         let wal_file = File::options()
             .create(true)
@@ -92,8 +93,17 @@ impl DbState {
         self.wal_size = 0;
     }
 
+    /// 将数据全部同步写入磁盘，适用于在停止服务时使用
+    pub async fn write_sync_all(&mut self) -> StorageResult<()> {
+        self.wal_file.sync_all().await?;
+        Ok(())
+    }
+
     /// 辅助方法，用于重放文件中的 Command 指令，并将数据写入内存数据中
-    async fn replay_file(file_path: &str, map: &mut HashMap<String, Vec<u8>>) -> StorageResult<usize> {
+    async fn replay_file(
+        file_path: &str,
+        map: &mut HashMap<String, Vec<u8>>,
+    ) -> StorageResult<usize> {
         // 如果 WAL 文件存在，读取并恢复数据
         if Path::new(file_path).exists() {
             let mut file = File::open(file_path).await?;
@@ -118,10 +128,10 @@ impl DbState {
                 cursor += protocol_len; // 移动到下一个命令
             }
 
-            println!("数据恢复完成，成功恢复了 {} 条记录。", map.len());
+            // println!("数据恢复完成，成功恢复了 {} 条记录。", map.len());
             Ok(buffer.len())
         } else {
-            println!("未检测到 WAL 文件，初始化空白数据库。");
+            println!("未检测到 {} 文件。", file_path);
             Ok(0)
         }
         // Ok(0)
