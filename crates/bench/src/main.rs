@@ -46,6 +46,7 @@ async fn main() {
                         Response::Deleted => {},
                         Response::Value(items) => {},
                         Response::Error(err_msg) => eprintln!("客户端 {} 收到错误响应: {}", i, err_msg),
+                        Response::Shutdown => {},
                     }
                 }
             }

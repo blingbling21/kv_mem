@@ -5,6 +5,7 @@ pub enum Response {
     Ok,
     KeyNotExist,
     Deleted,
+    Shutdown,
     Value(Vec<u8>),
     Error(String),
 }
@@ -22,6 +23,7 @@ impl Response {
                 value
             }
             Response::Error(msg) => format!("{}{}\n", ERROR_PREFIX, msg).into_bytes(),
+            Response::Shutdown => b"SHUTDOWN\n".to_vec(),
         }
     }
 
@@ -37,6 +39,7 @@ impl Response {
             "Ok" => Some(Self::Ok),
             "KEY_NOT_EXIST" => Some(Self::KeyNotExist),
             "DELETED" => Some(Self::Deleted),
+            "SHUTDOWN" => Some(Self::Shutdown),
             s if s.starts_with(ERROR_PREFIX) => {
                 Some(Self::Error(s[ERROR_PREFIX.len()..].to_string()))
             }

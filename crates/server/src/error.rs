@@ -1,4 +1,5 @@
 use thiserror::Error;
+use tokio::sync::watch::error::SendError;
 
 #[derive(Debug, Error)]
 pub enum ServerError {
@@ -10,6 +11,8 @@ pub enum ServerError {
     ParseUtf8Error(#[from] std::str::Utf8Error),
     #[error("IO 错误: {0}")]
     IOError(#[from] std::io::Error),
+    #[error("IO 错误: {0}")]
+    SendError(#[from] SendError<bool>),
 }
 
 pub type ServerResult<T> = std::result::Result<T, ServerError>;
